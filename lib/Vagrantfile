@@ -92,7 +92,7 @@ def version
 end
 
 Vagrant.configure(2) do |config|
-  config.vm.box = "openbsd-#{version}-#{arch}"
+  config.vm.box = "fnichol/openbsd-#{version}-#{arch}"
 
   config.vm.synced_folder release_dir, "/usr/rel", type: "nfs"
 
