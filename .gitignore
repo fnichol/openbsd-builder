@@ -1,0 +1,5 @@
+.DS_Store
+.vagrant/
+/pub/
+/etc/signify/*.pub
+/etc/signify/*.sec

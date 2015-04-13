@@ -1,0 +1,73 @@
+#!/usr/bin/env sh
+
+set -e
+
+banner() {
+  echo "---> ${1}"
+}
+
+get_sudo() {
+  sudo -v
+}
+
+keep_sudo() {
+  while true; do
+    sudo -n true; sleep 60; kill -0 "$$" || exit
+  done 2>/dev/null &
+}
+
+VERSION="$1"
+if test "x${VERSION}" = "x"; then
+  echo "Missing VERSION argument"
+  echo "usage: ${0} VERSION ARCH [-- VAGRANT_ARGS ..]"
+  exit 10
+fi
+
+shift
+ARCH="$1"
+if test "x${ARCH}" = "x"; then
+  echo "Missing ARCH argument"
+  echo "usage: ${0} VERSION ARCH [-- VAGRANT_ARGS ..]"
+  exit 10
+fi
+
+RELEASEDIR="`dirname $0`/../pub/OpenBSD/${VERSION}/${ARCH}"
+
+reboot_cookie="${RELEASEDIR}/.reboot_required"
+vagrant_root="`dirname $0`/../lib"
+
+export VERSION
+export ARCH
+export RELEASEDIR
+
+mkdir -p "$RELEASEDIR"
+
+shift
+if test "x$1" = "x--"; then
+  shift
+  echo "VERSION=${VERSION} ARCH=${ARCH} RELEASEDIR=${RELEASEDIR}"
+  set -x
+  cd "$vagrant_root"
+  exec vagrant $*
+fi
+
+main() {
+  set -x
+  banner "Booting Vagrant VM and running provisioner"
+  (cd "$vagrant_root"; vagrant up --no-provision)
+  (cd "$vagrant_root"; vagrant provision)
+
+  while test -f "$reboot_cookie"; do
+    banner "Reboot requested, calling reload"
+    (cd "$vagrant_root"; vagrant reload)
+    rm -f "$reboot_cookie"
+    (cd "$vagrant_root"; vagrant provision)
+  done
+
+  banner "Build complete"
+}
+
+get_sudo
+keep_sudo
+
+time (main)

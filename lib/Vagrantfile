@@ -1,0 +1,86 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+def arch
+  @arch ||= ENV.fetch("ARCH") { abort "ENV['ARCH'] must be set" }
+end
+
+def build_script(vars = {})
+  script = IO.read("build_stable_release.sh")
+  script.insert(
+    0,
+    vars.map { |k,v| %{#{k}="#{v}"; export #{k}} }.join("\n").concat("\n\n")
+  )
+  script
+end
+
+def release_dir
+  File.expand_path(
+    ENV.fetch("RELEASEDIR") { abort "ENV['RELEASEDIR'] must be set" },
+    ".."
+  )
+end
+
+def signify_key_pub
+  file = "../etc/signify/openbsd-#{version.sub(".", "")}-stable-base.pub"
+  if !File.exist?(file)
+    abort "File: #{file} not found which is used for release signing"
+  end
+  IO.read(file).chomp
+end
+
+def signify_key_sec
+  file = "../etc/signify/openbsd-#{version.sub(".", "")}-stable-base.sec"
+  if !File.exist?(file)
+    abort "File: #{file} not found which is used for release signing"
+  end
+  IO.read(file).chomp
+end
+
+def vars
+  major, minor = version.split(".")
+
+  {
+    "ARCH" => arch,
+    "BUILDDIR" => "/home/build",
+    "CVSROOT" => ENV.fetch("CVSROOT", "anoncvs@anoncvs.comstyle.com:/cvs"),
+    "CVS_TAG" => "OPENBSD_#{major}_#{minor}",
+    "DEBUG_SCRIPT" => ENV["DEBUG"],
+    "FINAL_DESTDIR" => "/usr/local/dest",
+    "FINAL_RELEASEDIR" => "/usr/rel",
+    "ftp_proxy" => ENV["ftp_proxy"],
+    "http_proxy" => ENV["http_proxy"],
+    "https_proxy" => ENV["https_proxy"],
+    "MIRROR" => File.join(
+      "http://",
+      ENV.fetch("MIRROR_SERVER", "ftp.openbsd.org"),
+      ENV.fetch("MIRROR_DIRECTORY", "pub/OpenBSD/#{version}"),
+    ),
+    "SIGNIFY_KEY_PUB" => signify_key_pub,
+    "SIGNIFY_KEY_SEC" => signify_key_sec
+  }
+end
+
+def version
+  @version ||= ENV.fetch("VERSION") { abort "ENV['VERSION'] must be set" }
+end
+
+Vagrant.configure(2) do |config|
+  config.vm.box = "openbsd-#{version}-#{arch}"
+
+  config.vm.synced_folder release_dir, "/usr/rel", type: "nfs"
+
+  config.vm.provision "shell", inline: build_script(vars)
+
+  config.vm.provider :virtualbox do |v, override|
+    v.customize ["modifyvm", :id, "--memory", "2048"]
+    v.customize ["modifyvm", :id, "--cpus", "4"]
+  end
+
+  ["vmware_fusion", "vmware_workstation"].each do |vmware|
+    config.vm.provider vmware do |v, override|
+      v.vmx["memsize"] = "2048"
+      v.vmx["numvcpus"] = "4"
+    end
+  end
+end
