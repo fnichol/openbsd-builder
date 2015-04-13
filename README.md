@@ -91,6 +91,18 @@ Run the `bin/build` command with the version of OpenBSD (i.e. `5.6`) and the arc
 
 Note that this takes multiple hours at a minimum. Currently only OpenBSD 5.6 (and greater) on `amd64` or `i386` architectures are supported.
 
+Also note that you will be prompted for your local sudo password when `bin/build` is first invoked. This is used by Vagrant to use NFS synced folders for the release artifacts. Unfortunately, this appears to require root access, but as OpenBSD does not have VirtualBox or VMware tools support, there were few other options.
+
+## Interacting With Vagrant
+
+This project injects some environment variables and other configuration data in the Vagrantfile and consequently is hard to invoke directly. Instead, you can use the `bin/build` command with the `--` argument--all arguments after that are passed directly to Vagrant. For example:
+
+```sh
+./bin/build 5.6 i386 -- status
+./bin/build 5.6 i386 -- ssh
+./bin/build 5.6 i386 -- destroy
+```
+
 ## Building A Stable Branch-Based Vagrant Box
 
 If further Vagrant boxes need to be created, you might consider using the OpenBSD packer templates from [fnichol/packer-templates](https://github.com/fnichol/packer-templates) which produced the Vagrant box which was used to build the release. I know, trippy, right?
