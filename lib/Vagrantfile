@@ -94,6 +94,8 @@ end
 Vagrant.configure(2) do |config|
   config.vm.box = "fnichol/openbsd-#{version}-#{arch}"
 
+  config.ssh.sudo_command = "doas %c"
+
   config.vm.synced_folder release_dir, "/usr/rel", type: "nfs"
 
   config.vm.provision "shell", inline: build_script(vars)

@@ -187,7 +187,11 @@ mount_ramdisk() {
 }
 
 prep_cvs_host() {
-  ssh_config="${HOME}/.ssh/config"
+  if test `id -g` -eq 0; then
+    ssh_config="/root/.ssh/config"
+  else
+    ssh_config="${HOME}/.ssh/config"
+  fi
   if test ! -f "$ssh_config" || grep "Match User anoncvs" "$ssh_config" 2>&1 >/dev/null; then
     mkdir -p "`dirname $ssh_config`"
     chmod 0500 "`dirname $ssh_config`"
