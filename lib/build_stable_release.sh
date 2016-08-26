@@ -272,6 +272,12 @@ release_system() {
       rm -rf ${FINAL_DESTDIR}.old &
     fi
 
+    info "Patching amd64 Makefile to relax copy permissions"
+    sed \
+      -e 's^\([^-]\)\(cp ${DESTDIR}/usr/mdec/BOOTX64.EFI ${RELEASEDIR}\)^\1-\2^' \
+      -e 's^\([^-]\)\(cp ${DESTDIR}/usr/mdec/BOOTIA32.EFI ${RELEASEDIR}\)^\1-\2^' \
+      -i /usr/src/etc/etc.amd64/Makefile.inc
+
     mkdir -p ${FINAL_DESTDIR} ${FINAL_RELEASEDIR}
     (cd /usr/src/etc; \
       env DESTDIR=${FINAL_DESTDIR} RELEASEDIR=${FINAL_RELEASEDIR} make release
