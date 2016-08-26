@@ -104,6 +104,39 @@ create_index() {
   (cd "$FINAL_RELEASEDIR"; ls -nT >index.txt)
 }
 
+create_sources() {
+  systar="$FINAL_RELEASEDIR/src/sys.tar.gz"
+  srctar="$FINAL_RELEASEDIR/src/src.tar.gz"
+  xenocaratar="$FINAL_RELEASEDIR/src/xenocara.tar.gz"
+  portstar="$FINAL_RELEASEDIR/src/ports.tar.gz"
+
+  banner "Creating source tarballs"
+  mkdir -p "`dirname $srctar`"
+  if test ! -f "${systar}"; then
+    info "Archiving /usr/src/sys to $systar"
+    (cd /usr/src; tar cpzf "$systar" ./sys)
+  fi
+  if test ! -f "${srctar}"; then
+    info "Archiving /usr/src to $srctar"
+    (cd /usr/src; find . -maxdepth 1 \! \( -name sys -o -name . \) \
+      | xargs tar cpzf "$srctar")
+  fi
+  if test ! -f "${xenocaratar}"; then
+    info "Archiving /usr/xenocara to $xenocaratar"
+    (cd /usr; tar cphzf "$xenocaratar" xenocara)
+  fi
+  if test ! -f "${portstar}"; then
+    info "Archiving /usr/ports to $portstar"
+    (cd /usr; tar cphzf "$portstar" ports)
+  fi
+  (cd "$FINAL_RELEASEDIR/src"; date +%FT%T%z > BUILDDATE)
+  (cd "$FINAL_RELEASEDIR/src"; cksum -a sha256 * > SHA256)
+  banner "Signing src/SHA256"
+  (cd "$FINAL_RELEASEDIR/src"; \
+    signify -S -s "$signify_key_sec_file" -m SHA256 -e -x SHA256.sig
+  )
+}
+
 do_download() {
   sigfile="`dirname $2`/SHA256.sig"
 
@@ -120,9 +153,8 @@ do_download() {
   fi
 
   info "Verifying ${2}"
-  (cd "`dirname $2`"; signify -C \
-    -p "/etc/signify/openbsd-`uname -r | sed 's/\.//'`-base.pub" \
-    -x "$sigfile" "`basename $2`"
+  (cd "`dirname $2`"; \
+    signify -C -p "$signify_key_pub_dist" -x "$sigfile" "`basename $2`"
   )
 }
 
@@ -220,6 +252,12 @@ prep_signify_files() {
   echo "$SIGNIFY_KEY_SEC" >"$signify_key_sec_file"
   unset SIGNIFY_KEY_SEC
   chmod 400 "$signify_key_sec_file"
+
+  if test ! -f "$signify_key_pub_dist"; then
+    mkdir -p "`dirname $signify_key_pub_dist`"
+    cp -p "/etc/signify/openbsd-`uname -r | sed 's/\.//'`-base.pub" \
+      "$signify_key_pub_dist"
+  fi
 }
 
 release_system() {
@@ -330,6 +368,7 @@ cookie_dir="${BUILDDIR}/cookies"
 dl_dir="${BUILDDIR}/downloads"
 signify_key_pub_file="${BUILDDIR}/signify/openbsd-`uname -r | sed 's/\.//'`-stable-base.pub"
 signify_key_sec_file="${BUILDDIR}/signify/openbsd-`uname -r | sed 's/\.//'`-stable-base.sec"
+signify_key_pub_dist="${BUILDDIR}/signify/openbsd-`uname -r | sed 's/\.//'`-base.pub.dist"
 
 prep_signify_files
 
@@ -354,6 +393,8 @@ mount_ramdisk "/usr/xobj" "2G"
 build_xenocara
 release_xenocara
 unmount_ramdisk "/usr/xobj"
+
+create_sources
 
 combine_sha256
 sign_sha256
