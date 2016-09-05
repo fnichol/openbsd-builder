@@ -212,9 +212,9 @@ install_signify_key() {
 mount_ramdisk() {
   test "x${DEBUG_SCRIPT}" != "x" && set -x
 
-  if ! (mount | grep "${1} type tmpfs" 2>&1 >/dev/null); then
+  if ! (mount | grep "${1} type mfs" 2>&1 >/dev/null); then
     banner "Mounting ${2} RAMDISK for ${1}"
-    mount_tmpfs -s "$2" -o nosuid,nodev tmpfs "$1"
+    mount_mfs -s "$2" -o async,nosuid,nodev /dev/sd0b "$1"
   fi
 }
 
@@ -334,7 +334,7 @@ sign_sha256() {
 unmount_ramdisk() {
   test "x${DEBUG_SCRIPT}" != "x" && set -x
 
-  if (mount | grep "${1} type tmpfs" 2>&1 >/dev/null); then
+  if (mount | grep "${1} type mfs" 2>&1 >/dev/null); then
     banner "Un-mounting RAMDISK for ${1}"
     umount "$1"
   fi
